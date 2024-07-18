@@ -1,26 +1,7 @@
-/*!
-
-=========================================================
-* Argon Dashboard React - v1.2.4
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/argon-dashboard-react
-* Copyright 2024 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/argon-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
-
-// reactstrap components
+import React, { useState } from 'react';
 import {
   Button,
   Card,
-  CardHeader,
   CardBody,
   FormGroup,
   Form,
@@ -30,59 +11,83 @@ import {
   InputGroup,
   Row,
   Col,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter
 } from "reactstrap";
+import { db } from '../../config/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const toggleModal = () => {
+    setIsModalOpen(!isModalOpen);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Check if user already exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', mobile));
+      if (userDoc.exists()) {
+        // User already exists, show alert and redirect to login page
+        setError('User already exists');
+        toggleModal();
+        return;
+      }
+
+      // Store user data in Firestore
+      await setDoc(doc(db, 'users', mobile), {
+        name,
+        email,
+        mobile,
+        password,
+        isAdmin: false, // Assuming default is not admin
+        createdAt: new Date(),
+      });
+
+      // Clear form after submission
+      resetForm();
+
+      // Show success message or redirect
+
+      // Redirect to login page after some time (optional)
+      setTimeout(() => {
+        navigate('/auth/login');
+      }, 3000); // Redirect after 3 seconds
+
+    } catch (error) {
+      console.error('Registration error', error);
+      setError('Error registering. Please check your details and try again.');
+      toggleModal();
+    }
+  };
+
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setMobile('')
+    setPassword('');
+  };
+
   return (
     <>
       <Col lg="6" md="8">
         <Card className="bg-secondary shadow border-0">
-          <CardHeader className="bg-transparent pb-5">
-            <div className="text-muted text-center mt-2 mb-4">
-              <small>Sign up with</small>
-            </div>
-            <div className="text-center">
-              <Button
-                className="btn-neutral btn-icon mr-4"
-                color="default"
-                href="#pablo"
-                onClick={(e) => e.preventDefault()}
-              >
-                <span className="btn-inner--icon">
-                  <img
-                    alt="..."
-                    src={
-                      require("../../assets/img/icons/common/github.svg")
-                        .default
-                    }
-                  />
-                </span>
-                <span className="btn-inner--text">Github</span>
-              </Button>
-              <Button
-                className="btn-neutral btn-icon"
-                color="default"
-                href="#pablo"
-                onClick={(e) => e.preventDefault()}
-              >
-                <span className="btn-inner--icon">
-                  <img
-                    alt="..."
-                    src={
-                      require("../../assets/img/icons/common/google.svg")
-                        .default
-                    }
-                  />
-                </span>
-                <span className="btn-inner--text">Google</span>
-              </Button>
-            </div>
-          </CardHeader>
           <CardBody className="px-lg-5 py-lg-5">
             <div className="text-center text-muted mb-4">
               <small>Or sign up with credentials</small>
             </div>
-            <Form role="form">
+            <Form role="form" onSubmit={handleSubmit}>
               <FormGroup>
                 <InputGroup className="input-group-alternative mb-3">
                   <InputGroupAddon addonType="prepend">
@@ -90,7 +95,12 @@ const Register = () => {
                       <i className="ni ni-hat-3" />
                     </InputGroupText>
                   </InputGroupAddon>
-                  <Input placeholder="Name" type="text" />
+                  <Input
+                    placeholder="Name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
                 </InputGroup>
               </FormGroup>
               <FormGroup>
@@ -103,6 +113,24 @@ const Register = () => {
                   <Input
                     placeholder="Email"
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="new-email"
+                  />
+                </InputGroup>
+              </FormGroup>
+              <FormGroup>
+                <InputGroup className="input-group-alternative mb-3">
+                  <InputGroupAddon addonType="prepend">
+                    <InputGroupText>
+                      <i className="ni ni-email-83" />
+                    </InputGroupText>
+                  </InputGroupAddon>
+                  <Input
+                    placeholder="Mobile No."
+                    type="text"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
                     autoComplete="new-email"
                   />
                 </InputGroup>
@@ -117,10 +145,13 @@ const Register = () => {
                   <Input
                     placeholder="Password"
                     type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
                   />
                 </InputGroup>
               </FormGroup>
+              {error && <div className="text-danger mb-3">{error}</div>}
               <div className="text-muted font-italic">
                 <small>
                   password strength:{" "}
@@ -150,7 +181,7 @@ const Register = () => {
                 </Col>
               </Row>
               <div className="text-center">
-                <Button className="mt-4" color="primary" type="button">
+                <Button className="mt-4" color="primary" type="submit">
                   Create account
                 </Button>
               </div>
@@ -158,6 +189,15 @@ const Register = () => {
           </CardBody>
         </Card>
       </Col>
+
+      {/* Modal for error */}
+      <Modal isOpen={isModalOpen} toggle={toggleModal}>
+        <ModalHeader toggle={toggleModal}>Registration Error</ModalHeader>
+        <ModalBody>{error}</ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={toggleModal}>Close</Button>
+        </ModalFooter>
+      </Modal>
     </>
   );
 };
